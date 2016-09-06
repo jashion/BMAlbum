@@ -1,0 +1,15 @@
+/* 
+  Localizable.strings
+  BMImagePickerDemo
+
+  Created by jashion on 16/6/10.
+  Copyright © 2016年 BMu. All rights reserved.
+*/
+
+
+"Smart Albums"     =    "智能相册";
+"Albums"           =    "相册";
+"Camera Roll"      =    "相机胶卷";
+"Deleted"          =    "最近删除";
+"My Photo Stream"  =    "我的照片流";
+"Selfies"          =    "自拍";
