@@ -111,12 +111,6 @@
     
     BMAlbumPhotoModel *model = self.photoAssets[_currentIndex];
     [self showPhotoSeleted: model.isSelected showAnimation: NO];
-    
-    if (model.type == BMAlbumModelMediaTypeLivePhoto) {
-        self.livePhotoPlayButton.hidden = NO;
-    } else {
-        self.livePhotoPlayButton.hidden = YES;
-    }
 }
 
 - (void)configureToolBar {
@@ -134,6 +128,13 @@
     
     self.livePhotoPlayButton.center = CGPointMake(30, 22);
     [self.photoToolBar addSubview: self.livePhotoPlayButton];
+    
+    BMAlbumPhotoModel *model = self.photoAssets[_currentIndex];
+    if (model.type == BMAlbumModelMediaTypeLivePhoto) {
+        self.livePhotoPlayButton.hidden = NO;
+    } else {
+        self.livePhotoPlayButton.hidden = YES;
+    }
     
     UIImage *image = [UIImage imageNamed:@"CheckNum"];
     imageSize = image.size;
@@ -198,7 +199,7 @@
         __block NSInteger number = 0;
         for (NSInteger index = 0; index < self.selectedPhotos.count; index++) {
             BMAlbumPhotoModel *model = self.selectedPhotos[index];
-            [[BMAlbumManager sharedInstance] getPhotoWithAsset: model.asset completion:^(UIImage *resultImage, NSDictionary *info, BOOL isDegraded) {
+            [[BMAlbumManager sharedInstance] photoWithAsset: model.asset width: [UIScreen mainScreen].bounds.size.width completion:^(UIImage *resultImage, NSDictionary *info, BOOL isDegraded) {
                 if (isDegraded) {
                     return;
                 }
@@ -231,7 +232,7 @@
         
         if (self.selectedPhotos.count == 0) {
             BMAlbumPhotoModel *model = self.photoAssets[_currentIndex];
-            [[BMAlbumManager sharedInstance] getPhotoWithAsset: model.asset completion:^(UIImage *resultImage, NSDictionary *info, BOOL isDegraded) {
+            [[BMAlbumManager sharedInstance] photoWithAsset: model.asset width: [UIScreen mainScreen].bounds.size.width completion:^(UIImage *resultImage, NSDictionary *info, BOOL isDegraded) {
                 if (isDegraded) {
                     return ;
                 }
@@ -282,8 +283,18 @@
     } completion:^(BOOL finished) {}];
 }
 
-- (void)displayPhotoToolBar: (BOOL)display {
-    if (display) {
+- (void)showToolBarAndNavigationBar: (BOOL)isShow {
+    if ([[UIDevice currentDevice].systemVersion floatValue] >= 9.0) {
+        [self setNeedsStatusBarAppearanceUpdate];
+    } else {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+        [[UIApplication sharedApplication] setStatusBarHidden: isShow withAnimation: UIStatusBarAnimationSlide];
+    }
+#pragma clang diagnostic pop
+    [self.navigationController setNavigationBarHidden: isShow animated: YES];
+    
+    if (isShow) {
         [UIView animateWithDuration: 0.2 animations:^{
             self.photoToolBar.transform = CGAffineTransformMakeTranslation(0, 44);
         }];
@@ -373,12 +384,11 @@
 
 - (void)livePhotoView:(PHLivePhotoView *)livePhotoView willBeginPlaybackWithStyle:(PHLivePhotoViewPlaybackStyle)playbackStyle {
     self.livePhotoPlayButton.selected = YES;
-    NSLog(@"LivePhoto begin!");
 }
 
 - (void)livePhotoView:(PHLivePhotoView *)livePhotoView didEndPlaybackWithStyle:(PHLivePhotoViewPlaybackStyle)playbackStyle {
     self.livePhotoPlayButton.selected = NO;
-    NSLog(@"LivePhoto end!");
+    [self showToolBarAndNavigationBar: NO];
 }
 
 #pragma mark - UICollectionViewDataSource
@@ -393,16 +403,7 @@
     cell.singleTapBlock = ^{
         __strong typeof(weakSelf) strongSelf = weakSelf;
         strongSelf.hideNavigationBar = !weakSelf.hideNavigationBar;
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-        if ([[UIDevice currentDevice].systemVersion floatValue] >= 9.0) {
-            [strongSelf prefersStatusBarHidden];
-        } else {
-            [[UIApplication sharedApplication] setStatusBarHidden: strongSelf.hideNavigationBar withAnimation:UIStatusBarAnimationSlide];
-        }
-#pragma clang diagnostic pop
-        [strongSelf.navigationController setNavigationBarHidden: strongSelf.hideNavigationBar animated: YES];
-        [strongSelf displayPhotoToolBar: strongSelf.hideNavigationBar];
+        [strongSelf showToolBarAndNavigationBar: strongSelf.hideNavigationBar];
     };
     BMAlbumPhotoModel *model = self.photoAssets[indexPath.row];
     [cell setPhotoModel: model];
@@ -414,6 +415,12 @@
 
 - (void)collectionView:(UICollectionView *)collectionView didSelectItemAtIndexPath:(NSIndexPath *)indexPath {
 
+}
+
+#pragma mark - Override
+
+- (BOOL)prefersStatusBarHidden {
+    return self.hideNavigationBar;
 }
 
 @end

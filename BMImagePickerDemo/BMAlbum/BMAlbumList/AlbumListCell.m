@@ -11,10 +11,12 @@
 #import "BMAlbumManager.h"
 #import "BMAlbumGlobalDefine.h"
 
+static CGFloat cellWidth = 70.f;
+
 @implementation AlbumListCell
 {
-    UIImageView     *albumPlaceHolderImageView;
-    UILabel         *albumTitleLabel;
+    UIImageView *albumPlaceHolderImageView;
+    UILabel *albumTitleLabel;
 }
 
 - (instancetype)initWithStyle:(UITableViewCellStyle)style reuseIdentifier:(NSString *)reuseIdentifier {
@@ -57,9 +59,8 @@
     NSAttributedString *imagesCount = [[NSAttributedString alloc] initWithString: [NSString stringWithFormat: @"  (%zd)", model.imagesCount] attributes: @{NSFontAttributeName : [UIFont systemFontOfSize: 16], NSForegroundColorAttributeName : [UIColor lightGrayColor]}];
     [albumAttrStr appendAttributedString: imagesCount];
     albumTitleLabel.attributedText = albumAttrStr;
-    
-    [[BMAlbumManager sharedInstance] getPosterImageWithBMAlbumDataModel: model completion:^(UIImage *posterImage) {
-        albumPlaceHolderImageView.image = posterImage;
+    [[BMAlbumManager sharedInstance] posterImageWithAlbum: model.assetResult width: cellWidth completion:^(UIImage *resultImage) {
+        albumPlaceHolderImageView.image = resultImage;
     }];
 }
 

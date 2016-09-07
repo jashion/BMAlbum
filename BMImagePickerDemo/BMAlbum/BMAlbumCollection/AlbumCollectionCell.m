@@ -10,6 +10,8 @@
 #import "BMAlbumManager.h"
 #import <PhotosUI/PhotosUI.h>
 
+static CGFloat cellWith = 80;
+
 @interface AlbumCollectionCell ()
 
 @property (nonatomic, strong) BMAlbumPhotoModel *model;
@@ -89,13 +91,11 @@
     
     if (model.type == BMAlbumModelMediaTypeLivePhoto) {
         self.livePhotoBadgeImageView.image = [PHLivePhotoView livePhotoBadgeImageWithOptions: PHLivePhotoBadgeOptionsOverContent];
-        checkButton.hidden = YES;
     } else {
         self.livePhotoBadgeImageView.image = nil;
-        checkButton.hidden = NO;
     }
     
-    [[BMAlbumManager sharedInstance] getThumbnailWithAsset: model.asset completion:^(UIImage *resultImage) {
+    [[BMAlbumManager sharedInstance] thumbnailWithAsset: model.asset width: cellWith completion:^(UIImage *resultImage) {
         _imageView.image = resultImage;
     }];
 }

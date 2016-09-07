@@ -26,22 +26,26 @@ typedef void(^didFinishLivePhotoInfoWithDegradHandle)(PHLivePhoto *livePhoto, NS
 + (BMAlbumManager *)sharedInstance;
 - (BOOL)authorizationStatusAuthoried;
 
-- (void)getAllAlbumsWithVideo: (BOOL)allowPickingVideo completion: (void(^)(NSArray<BMAlbumDataModel *> *albums,  NSMutableArray *fetchResults, NSMutableArray *phAssetCollections))completion;
-- (void)getPosterImageWithBMAlbumDataModel: (BMAlbumDataModel *)model completion: (didFinishPhotoHandle)completion;
-- (void)getThumbnailWithAsset: (id)asset completion: (didFinishPhotoHandle)completion;
-- (void)getFullScreenImageWithAsset: (id)asset completion: (didFinishPhotoHandle)completion;
-- (void)getOriginalImageWithAsset: (id)asset completion: (didFinishPhotoInfoHandle)completion;
-- (void)getPhotoWithAsset: (id)asset completion: (didFinishPhotoInfoWithDegradHandle)completion;
-- (void)getLivePhotoWithAsset: (id)asset completion: (didFinishLivePhotoInfoWithDegradHandle)completion;
+//获取本地相册
+- (void)allAlbumsWithVideo: (BOOL)allowPickingVideo completion: (void(^)(NSArray<BMAlbumDataModel *> *albums,  NSMutableArray *fetchResults, NSMutableArray *phAssetCollections))completion;
+//获取一个相册里面的资源
+- (void)assetsFromFetchResult: (id)resultGroup allowPickingVideo: (BOOL)allowPickingVideo completion: (void(^)(NSArray<BMAlbumPhotoModel *> *assets))completion;
+
+//获取图片
+- (void)posterImageWithAlbum: (id)album width: (CGFloat)width completion: (didFinishPhotoHandle)completion;
+- (void)thumbnailWithAsset: (id)asset width: (CGFloat)width completion: (didFinishPhotoHandle)completion;
+- (void)fullScreenImageWithAsset: (id)asset completion: (didFinishPhotoHandle)completion;
+- (void)originalImageWithAsset: (id)asset completion: (didFinishPhotoInfoHandle)completion;
+- (void)photoWithAsset: (id)asset width: (CGFloat)width completion: (didFinishPhotoInfoWithDegradHandle)completion;
+
+//获取LivePhoto(也属于图片类型)
+- (void)livePhotoWithAsset: (id)asset completion: (didFinishLivePhotoInfoWithDegradHandle)completion;
+//获取视频
 - (void)getVideoWithAsset: (id)asset completion: (void(^)(AVPlayerItem *playerItem, NSDictionary *info))completion;
-
-- (void)getAssetsWithFetchResult: (id)resultGroup allowPickingVideo: (BOOL)allowPickingVideo completion: (void(^)(NSArray<BMAlbumPhotoModel *> *assets))completion;
-
+//创建相册
 - (void)createAlbumWithTitle:(NSString *)title completion: (void(^)(id assetGroup))completion;
-- (void)saveImageWithAlbum: (id)album image: (UIImage *)image completion: (void(^)(BOOL success))completion;
-
-- (void)addAsset: (UIImage *)image completion: (void(^)(NSURL *assetURL))completion;
-- (void)getAssetWithUrl: (NSURL *)url completion: (void(^)(ALAsset *asset))completion;
+//存储图片
+- (void)saveImageToAlbum: (id)album image: (UIImage *)image completion: (void(^)(BOOL success))completion;
 
 + (void)collectionMediaTypeWithAsset: (id)asset completion: (void(^)(BMAlbumModelMediaType type))completion;
 

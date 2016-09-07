@@ -10,16 +10,26 @@
 #import <AssetsLibrary/AssetsLibrary.h>
 #import "BMAlbumManager.h"
 
+typedef NS_ENUM(NSUInteger, BMPlayerStatus) {
+    BMPlayerUnknow,
+    BMPlayerReadyToStart,
+    BMPlayerPause,
+    BMPlayerEnd,
+    BMPlayerFail
+};
+
 @interface PhotoPickerCell ()<UIScrollViewDelegate>
 
 @property (nonatomic, strong) UIScrollView *scrollView;
 @property (nonatomic, strong) BMAlbumPhotoModel *model;
 @property (nonatomic, strong) AVPlayer *player;
 @property (nonatomic, strong) AVPlayerLayer *playerLayer;
+@property (nonatomic, strong) AVPlayerItem *playerItem;
 @property (nonatomic, strong) UIButton *playButton;
 @property (nonatomic, strong) UIActivityIndicatorView *indicatorView;
 @property (nonatomic, strong) UIImageView *livePhotoBadgeView;
 @property (nonatomic, assign) BOOL playingHint;
+@property (nonatomic, assign) BMPlayerStatus bmPlayerStatus;
 
 @end
 
@@ -51,18 +61,24 @@
         [_scrollView addSubview: _imageView];
         
         UITapGestureRecognizer *singleTap = [[UITapGestureRecognizer alloc] initWithTarget: self action: @selector(singleTap:)];
-        [self addGestureRecognizer: singleTap];
+        [self.contentView addGestureRecognizer: singleTap];
         
         UITapGestureRecognizer *doubleTap = [[UITapGestureRecognizer alloc] initWithTarget: self action: @selector(doubleTap:)];
         doubleTap.numberOfTapsRequired = 2;
         [singleTap requireGestureRecognizerToFail: doubleTap];
-        [self addGestureRecognizer: doubleTap];
+        [self.contentView addGestureRecognizer: doubleTap];
         
-        [self addSubview: self.livePhotoView];
+        [self.contentView addSubview: self.livePhotoView];
+        [self.contentView addSubview: self.livePhotoBadgeView];
         [self addSubview: self.playButton];
-        [self addSubview: self.livePhotoBadgeView];
     }
     return self;
+}
+
+- (void)dealloc {
+    [[NSNotificationCenter defaultCenter] removeObserver: self name: AVPlayerItemDidPlayToEndTimeNotification object: nil];
+    [[NSNotificationCenter defaultCenter] removeObserver: self name: AVPlayerItemPlaybackStalledNotification object: nil];
+    [self.playerItem removeObserver: self forKeyPath: @"status" context: nil];
 }
 
 - (void)setPhotoModel: (BMAlbumPhotoModel *)model {
@@ -78,7 +94,7 @@
         self.livePhotoBadgeView.image = [PHLivePhotoView livePhotoBadgeImageWithOptions: PHLivePhotoBadgeOptionsOverContent];
         return;
     }
-    [[BMAlbumManager sharedInstance] getFullScreenImageWithAsset: _model.asset completion:^(UIImage *resultImage) {
+    [[BMAlbumManager sharedInstance] fullScreenImageWithAsset: _model.asset completion:^(UIImage *resultImage) {
         self.imageView.image = resultImage;
         self.livePhotoBadgeView.hidden = YES;
         self.livePhotoView.hidden = YES;
@@ -100,20 +116,22 @@
 - (void)loadVideo {
     [[BMAlbumManager sharedInstance] getVideoWithAsset: _model.asset completion:^(AVPlayerItem *playerItem, NSDictionary *info) {
         dispatch_async(dispatch_get_main_queue(), ^{
-            [self stopIndictor];
-            self.player = [AVPlayer playerWithPlayerItem: playerItem];
+            self.playerItem = playerItem;
+            self.playerItem.canUseNetworkResourcesForLiveStreamingWhilePaused = YES;
+            self.player = [AVPlayer playerWithPlayerItem: self.playerItem];
             self.playerLayer = [AVPlayerLayer playerLayerWithPlayer: self.player];
             self.playerLayer.videoGravity = AVLayerVideoGravityResizeAspect;
             self.playerLayer.frame = self.bounds;
             [self.layer insertSublayer: self.playerLayer below: self.playButton.layer];
             [[NSNotificationCenter defaultCenter] addObserver: self selector: @selector(pauseVideo) name:AVPlayerItemDidPlayToEndTimeNotification object: nil];
-            [self playVideo];
+            [[NSNotificationCenter defaultCenter] addObserver: self selector: @selector(playbackStalledWithNotification:) name: AVPlayerItemPlaybackStalledNotification object: nil];
+            [self.playerItem addObserver: self forKeyPath: @"status" options: NSKeyValueObservingOptionNew | NSKeyValueObservingOptionOld context: nil];
         });
     }];
 }
 
 - (void)updateLivePhoto {
-    [[BMAlbumManager sharedInstance] getLivePhotoWithAsset: _model.asset completion:^(PHLivePhoto *livePhoto, NSDictionary *info) {
+    [[BMAlbumManager sharedInstance] livePhotoWithAsset: _model.asset completion:^(PHLivePhoto *livePhoto, NSDictionary *info) {
         self.livePhotoView.livePhoto = livePhoto;
         if (![info[PHImageResultIsDegradedKey] boolValue] && !self.playingHint) {
             self.playingHint = YES;
@@ -140,12 +158,9 @@
 }
 
 - (void)singleTap: (UITapGestureRecognizer *)tap {
-//    if (_model.type != BMAlbumModelMediaTypePhoto) {
-//        return;
-//    }
-//    if (self.singleTapBlock) {
-//        self.singleTapBlock();
-//    }
+    if (self.singleTapBlock) {
+        self.singleTapBlock();
+    }
 }
 
 - (void)doubleTap: (UITapGestureRecognizer *)tap {
@@ -222,13 +237,46 @@
 }
 
 - (void)pauseVideo {
-    [_player pause];
-    [_playButton setImage: [UIImage imageNamed:@"VideoPlayIcon"] forState: UIControlStateNormal];
+    [self.player pause];
+    [self.playButton setImage: [UIImage imageNamed:@"VideoPlayIcon"] forState: UIControlStateNormal];
 }
 
 - (void)playVideo {
-    [_player play];
-    [_playButton setImage: nil forState: UIControlStateNormal];
+    [self.player play];
+    [self.playButton setImage: nil forState: UIControlStateNormal];
+}
+
+- (void)playbackStalledWithNotification: (NSNotification *)notification {
+    [self pauseVideo];
+}
+
+- (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary<NSString *,id> *)change context:(void *)context {
+    if ([object isKindOfClass: [AVPlayerItem class]]) {
+        AVPlayerItem *changePlayerItem = (AVPlayerItem *)object;
+        switch (changePlayerItem.status) {
+            case AVPlayerItemStatusUnknown:
+            {
+                [self pauseVideo];
+                break;
+            }
+            
+            case AVPlayerItemStatusReadyToPlay:
+            {
+                [self stopIndictor];
+                [self playVideo];
+                break;
+            }
+
+            case AVPlayerItemStatusFailed:
+            {
+                [self pauseVideo];
+                break;
+            }
+                
+            default:
+                break;
+        }
+    }
 }
 
 #pragma mark - Custom Accessors
@@ -236,7 +284,7 @@
 - (UIButton *)playButton {
     if (!_playButton) {
         _playButton = [UIButton buttonWithType: UIButtonTypeCustom];
-        _playButton.bounds = CGRectMake(0, 0, self.frame.size.width, self.frame.size.height);
+        _playButton.bounds = CGRectMake(0, 0, 60, 60);
         _playButton.center = CGPointMake(self.frame.size.width * 0.5, self.frame.size.height * 0.5);
         [_playButton setImage: [UIImage imageNamed:@"VideoPlayIcon"] forState: UIControlStateNormal];
         [_playButton setImage: [UIImage imageNamed:@"VideoPlayIconHL"] forState: UIControlStateHighlighted];

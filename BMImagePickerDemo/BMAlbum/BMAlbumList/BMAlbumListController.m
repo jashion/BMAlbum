@@ -81,7 +81,7 @@
 
 - (void)reloadTableData {
     BMAlbumNavigationController *bmNav = (BMAlbumNavigationController *)self.navigationController;
-    [[BMAlbumManager sharedInstance] getAllAlbumsWithVideo: bmNav.allowSelectVideo completion:^(NSArray<BMAlbumDataModel *> *albums,  NSMutableArray *fetchResults, NSMutableArray *phAssetCollections) {
+    [[BMAlbumManager sharedInstance] allAlbumsWithVideo: bmNav.allowSelectVideo completion:^(NSArray<BMAlbumDataModel *> *albums,  NSMutableArray *fetchResults, NSMutableArray *phAssetCollections) {
         self.albumList = [albums mutableCopy];
         self.fetchResults = [fetchResults mutableCopy];
         self.phAssetCollections = [phAssetCollections mutableCopy];
@@ -185,7 +185,7 @@
             }
             
             [[BMAlbumManager sharedInstance] createAlbumWithTitle: [textField.text copy] completion:^(id assetGroup) {
-                [[BMAlbumManager sharedInstance] saveImageWithAlbum: assetGroup image: [self createRandomImage] completion:^(BOOL success) {
+                [[BMAlbumManager sharedInstance] saveImageToAlbum: assetGroup image: [self createRandomImage] completion:^(BOOL success) {
                     if (success) {
                         if ([NSThread mainThread]) {
                         } else {
@@ -204,7 +204,6 @@
 }
 
 #pragma clang diagnostic pop
-
 
 #pragma mark - Event response
 
@@ -225,7 +224,7 @@
             }
             
             [[BMAlbumManager sharedInstance] createAlbumWithTitle: [albumNameTextField.text copy] completion:^(id assetGroup) {
-                [[BMAlbumManager sharedInstance] saveImageWithAlbum: assetGroup image: [self createRandomImage] completion:^(BOOL success) {
+                [[BMAlbumManager sharedInstance] saveImageToAlbum: assetGroup image: [self createRandomImage] completion:^(BOOL success) {
                     if (success) {
                         if ([NSThread mainThread]) {
                         } else {

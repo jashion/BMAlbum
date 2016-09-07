@@ -20,5 +20,7 @@
 - (void)setPhotoModel: (BMAlbumPhotoModel *)model;
 - (void)playLivePhoto: (BOOL)play;
 - (void)resetAllStatus;
+- (void)pauseVideo;
+- (void)playVideo;
 
 @end

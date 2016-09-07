@@ -64,6 +64,20 @@
     if (![self.phAssetCollection isKindOfClass: [PHAssetCollection class]] || [(PHAssetCollection *)self.phAssetCollection canPerformEditOperation: PHCollectionEditOperationAddContent]) {
         [self configureNavigationButton];
     }
+    
+    if ([self.phAssetCollection isKindOfClass: [PHAssetCollection class]]) {
+        PHAssetCollection *assetCollection = (PHAssetCollection *)self.phAssetCollection;
+        if (assetCollection.assetCollectionSubtype == PHAssetCollectionSubtypeSmartAlbumVideos ||
+            assetCollection.assetCollectionSubtype == PHAssetCollectionSubtypeSmartAlbumTimelapses ||
+            assetCollection.assetCollectionSubtype == PHAssetCollectionSubtypeSmartAlbumSlomoVideos) {
+            self.isHideToolBar = YES;
+        } else {
+            self.isHideToolBar = NO;
+        }
+    } else {
+        self.isHideToolBar = NO;
+    }
+    
     [self configureAlbumPhotosCollection];
     [self configureToolBar];
     [self loadData];
@@ -73,17 +87,7 @@
     [super viewWillAppear: animated];
     [[PHPhotoLibrary sharedPhotoLibrary] registerChangeObserver: self];
     
-    __weak typeof(self) weakSelf = self;
-    [BMAlbumManager collectionMediaTypeWithAsset: self.albumModel.assetResult completion:^(BMAlbumModelMediaType type) {
-        __strong typeof(weakSelf) strongSelf = weakSelf;
-        if (type != BMAlbumModelMediaTypePhoto) {
-            strongSelf.isHideToolBar = YES;
-            strongSelf.navigationController.toolbarHidden = YES;
-        } else {
-            strongSelf.isHideToolBar = NO;
-            strongSelf.navigationController.toolbarHidden = NO;
-        }
-    }];
+    self.navigationController.toolbarHidden = self.isHideToolBar;
 }
 
 - (void)viewDidAppear:(BOOL)animated {
@@ -108,7 +112,7 @@
     [cancelButton setTitle: @"添加" forState: UIControlStateNormal];
     [cancelButton setTitleEdgeInsets: UIEdgeInsetsMake(0, 0, 0, - 10)];
     [cancelButton setTitleColor: [UIColor blackColor] forState: UIControlStateNormal];
-    [cancelButton addTarget: self action: @selector(addAsset:) forControlEvents: UIControlEventTouchUpInside];
+    [cancelButton addTarget: self action: @selector(createPhotoAddToAlbum:) forControlEvents: UIControlEventTouchUpInside];
     
     self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithCustomView: cancelButton];
 }
@@ -156,7 +160,21 @@
 #pragma mark - Private Methods
 
 - (void)showPhotoNum: (NSUInteger)num {
-    if (num <= 0) {
+    BOOL isSetUp = num > 0 ? YES : NO;
+    self.confirm.enabled = isSetUp;
+    self.preView.enabled = isSetUp;
+    [self.confirm setTitleColor: isSetUp ? [UIColor blackColor] :[UIColor lightGrayColor] forState: UIControlStateNormal];
+    [self.preView setTitleColor: isSetUp ? [UIColor blackColor] :[UIColor lightGrayColor] forState: UIControlStateNormal];
+    
+    if (isSetUp) {
+        if (!self.photoNumBackground.superview) {
+            [self.navigationController.toolbar addSubview: self.photoNumBackground];
+        }
+        
+        if (!self.photoNum.superview) {
+            [self.navigationController.toolbar addSubview: self.photoNum];
+        }
+    } else {
         if (self.photoNumBackground.superview) {
             [self.photoNumBackground removeFromSuperview];
         }
@@ -164,31 +182,16 @@
         if (self.photoNum.superview) {
             [self.photoNum removeFromSuperview];
         }
-        
-        self.confirm.enabled = NO;
-        self.preView.enabled = NO;
-        [self.confirm setTitleColor: [UIColor lightGrayColor] forState: UIControlStateNormal];
-        [self.preView setTitleColor: [UIColor lightGrayColor] forState: UIControlStateNormal];
-        return;
     }
-    
-    if (!self.photoNumBackground.superview) {
-        [self.navigationController.toolbar addSubview: self.photoNumBackground];
+
+    if (!isSetUp) {
+      return;
     }
-    
-    if (!self.photoNum.superview) {
-        [self.navigationController.toolbar addSubview: self.photoNum];
-    }
-    
     self.photoNum.text = [NSString stringWithFormat: @"%ld", num];
     self.photoNumBackground.transform = CGAffineTransformMakeScale(0.1, 0.1);
     [UIView animateWithDuration: 0.5 delay: 0 usingSpringWithDamping: 0.6 initialSpringVelocity: 1.0 options: UIViewAnimationOptionCurveEaseInOut animations:^{
         self.photoNumBackground.transform = CGAffineTransformIdentity;
     } completion:^(BOOL finished) {}];
-    self.confirm.enabled = YES;
-    self.preView.enabled = YES;
-    [self.confirm setTitleColor: [UIColor blackColor] forState: UIControlStateNormal];
-    [self.preView setTitleColor: [UIColor blackColor] forState: UIControlStateNormal];
 }
 
 #pragma mark - Asset Caching
@@ -290,7 +293,7 @@
 
 - (void)loadData {
     BMAlbumNavigationController *bmNav = (BMAlbumNavigationController *)self.navigationController;
-    [[BMAlbumManager sharedInstance] getAssetsWithFetchResult: self.albumModel.assetResult allowPickingVideo: bmNav.allowSelectVideo completion:^(NSArray<BMAlbumPhotoModel *> *results) {
+    [[BMAlbumManager sharedInstance] assetsFromFetchResult: self.albumModel.assetResult allowPickingVideo: bmNav.allowSelectVideo completion:^(NSArray<BMAlbumPhotoModel *> *results) {
         if (results) {
             [self.albumPhotos addObjectsFromArray: results];
             [self.albumPhotosCollection reloadData];
@@ -381,14 +384,14 @@
     [self.navigationController dismissViewControllerAnimated: YES completion: nil];
 }
 
-- (void)addAsset: (id)sender {
+- (void)createPhotoAddToAlbum: (id)sender {
     UIGraphicsBeginImageContextWithOptions(CGSizeMake(200, 200), NO, [UIScreen mainScreen].scale);
     [[Utils randomColor] setFill];
     UIRectFill(CGRectMake(0, 0, 200, 200));
     UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
     UIGraphicsEndImageContext();
     
-    [[BMAlbumManager sharedInstance] saveImageWithAlbum: self.phAssetCollection image: image completion:^(BOOL success) {
+    [[BMAlbumManager sharedInstance] saveImageToAlbum: self.phAssetCollection image: image completion:^(BOOL success) {
         if (success) {
             NSLog(@"创建成功");
         }
@@ -423,7 +426,7 @@
         __block NSInteger number = 0;
         for (NSInteger index = 0; index < self.selectedPhotos.count; index++) {
             BMAlbumPhotoModel *model = self.selectedPhotos[index];
-            [[BMAlbumManager sharedInstance] getPhotoWithAsset: model.asset completion:^(UIImage *resultImage, NSDictionary *info, BOOL isDegraded) {
+            [[BMAlbumManager sharedInstance] photoWithAsset: model.asset width: [UIScreen mainScreen].bounds.size.width completion:^(UIImage *resultImage, NSDictionary *info, BOOL isDegraded) {
                 if (isDegraded) {
                     return;
                 }
@@ -507,10 +510,22 @@
     dispatch_async(dispatch_get_main_queue(), ^{
         self.albumModel.assetResult = [collectionChanges fetchResultAfterChanges];
         BMAlbumNavigationController *bmNav = (BMAlbumNavigationController *)self.navigationController;
-        [[BMAlbumManager sharedInstance] getAssetsWithFetchResult: self.albumModel.assetResult allowPickingVideo: bmNav.allowSelectVideo completion:^(NSArray<BMAlbumPhotoModel *> *results) {
+        [[BMAlbumManager sharedInstance] assetsFromFetchResult: self.albumModel.assetResult allowPickingVideo: bmNav.allowSelectVideo completion:^(NSArray<BMAlbumPhotoModel *> *results) {
             if (results) {
+                NSMutableArray *changeSelectedPhotos = @[].mutableCopy;
+                for (BMAlbumPhotoModel *model in self.selectedPhotos) {
+                    model.isSelected = NO;
+                    NSInteger index = [self.albumPhotos indexOfObject: model];
+                    [changeSelectedPhotos addObject: [NSIndexPath indexPathForRow: index inSection: 0]];
+                }
+                if (changeSelectedPhotos.count > 0) {
+                    selectedPhotoNum = 0;
+                    [self showPhotoNum: selectedPhotoNum];
+                    [self.selectedPhotos removeAllObjects];    //防止系统删除了选择的照片
+                    [self.albumPhotosCollection reloadItemsAtIndexPaths: changeSelectedPhotos];
+                }
+                
                 [self.albumPhotos removeAllObjects];
-                [self.selectedPhotos removeAllObjects];
                 [self.albumPhotos addObjectsFromArray: results];
                 
                 if (!collectionChanges.hasIncrementalChanges || collectionChanges.hasMoves) {

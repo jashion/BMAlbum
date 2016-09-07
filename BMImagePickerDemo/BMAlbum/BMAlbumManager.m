@@ -7,8 +7,6 @@
 //
 
 #import "BMAlbumManager.h"
-#import <Photos/Photos.h>
-#import "BMAlbumGlobalDefine.h"
 #import "BMAlbumGlobalDefine.h"
 
 @interface BMAlbumManager ()
@@ -59,7 +57,7 @@
     }
 }
 
-- (void)getAllAlbumsWithVideo: (BOOL)allowPickingVideo completion: (void(^)(NSArray<BMAlbumDataModel *> *albums, NSMutableArray *fetchResults, NSMutableArray *phAssetCollections))completion {
+- (void)allAlbumsWithVideo: (BOOL)allowPickingVideo completion: (void(^)(NSArray<BMAlbumDataModel *> *albums, NSMutableArray *fetchResults, NSMutableArray *phAssetCollections))completion {
     NSMutableArray *albumsArray = @[].mutableCopy;
     NSMutableArray *fetchResultsArray = @[].mutableCopy;
     NSMutableArray *phAssetCollectionsArray = @[].mutableCopy;
@@ -169,15 +167,88 @@
     }
 }
 
-- (void)getPosterImageWithBMAlbumDataModel: (BMAlbumDataModel *)model completion: (didFinishPhotoHandle)completion {
+- (void)assetsFromFetchResult: (id)resultGroup allowPickingVideo: (BOOL)allowPickingVideo completion: (void(^)(NSArray<BMAlbumPhotoModel *> *assets))completion {
+    NSMutableArray *results = @[].mutableCopy;
     if (iOS8Later) {
-        [self getImageWithAsset: [model.assetResult lastObject] imageWith: AlbumListCellHeight completion:^(UIImage *resultImage, NSDictionary *resultDict, BOOL degraded) {
+        PHFetchResult *fetchResult = (PHFetchResult *)resultGroup;
+        [fetchResult enumerateObjectsUsingBlock:^(PHAsset *obj, NSUInteger idx, BOOL * _Nonnull stop) {
+            PHAsset *asset = (PHAsset *)obj;
+            BMAlbumModelMediaType type = BMAlbumModelMediaTypePhoto;
+            NSString *timeLength = @"";
+            switch (asset.mediaType) {
+                case PHAssetMediaTypeImage:
+                {
+                    if (iOS9_1Later && asset.mediaSubtypes == PHAssetMediaSubtypePhotoLive) {
+                        type = BMAlbumModelMediaTypeLivePhoto;
+                    } else {
+                        type = BMAlbumModelMediaTypePhoto;
+                    }
+                    break;
+                }
+                    
+                case PHAssetMediaTypeVideo:
+                {
+                    type = BMAlbumModelMediaTypeVideo;
+                    timeLength = [self standardTimeFromDuration: asset.duration];
+                    break;
+                }
+                    
+                case PHAssetMediaTypeAudio:
+                {
+                    type = BMAlbumModelMediaTypeAudio;
+                    break;
+                }
+                    
+                case PHAssetMediaTypeUnknown:
+                default:
+                    break;
+            }
+            
+            if (!allowPickingVideo && type == BMAlbumModelMediaTypeVideo) {
+                return ;
+            }
+            
+            [results addObject: [BMAlbumPhotoModel modelWithAsset: asset type: type timeLength: timeLength]];
+        }];
+        
+        
+        if (completion) {
+            completion(results);
+        }
+    } else {
+        ALAssetsGroup *group = (ALAssetsGroup *)resultGroup;
+        if (!allowPickingVideo) {
+            [group setAssetsFilter: [ALAssetsFilter allPhotos]];
+        }
+        
+        [group enumerateAssetsUsingBlock:^(ALAsset *asset, NSUInteger index, BOOL *stop) {
+            if (!asset && completion) {
+                completion(results);
+            }
+            BMAlbumModelMediaType type = BMAlbumModelMediaTypePhoto;
+            if (!allowPickingVideo) {
+                [results addObject: [BMAlbumPhotoModel modelWithAsset: asset type: type]];
+            }
+            
+            if ([asset valueForProperty: ALAssetPropertyType] == ALAssetTypeVideo) {
+                type = BMAlbumModelMediaTypeVideo;
+                NSString *timeLength = [self standardTimeFromDuration: [[asset valueForProperty: ALAssetPropertyDuration] doubleValue]];
+                [results addObject: [BMAlbumPhotoModel modelWithAsset: asset type: type timeLength: timeLength]];
+            }
+        }];
+    }
+}
+
+- (void)posterImageWithAlbum: (id)album width: (CGFloat)width completion: (didFinishPhotoHandle)completion {
+    if ([album isKindOfClass: [PHFetchResult class]]) {
+        PHFetchResult *result = (PHFetchResult *)album;
+        [self imageWithAsset: [result lastObject] imageWith: width completion:^(UIImage *resultImage, NSDictionary *resultDict, BOOL degraded) {
             if (completion) {
                 completion(resultImage);
             }
         }];
-    } else {
-        ALAssetsGroup *group = (ALAssetsGroup *)model.assetResult;
+    } else if ([album isKindOfClass: [ALAssetsGroup class]]){
+        ALAssetsGroup *group = (ALAssetsGroup *)album;
         CGImageRef posterImageRef = [group posterImage];
         UIImage *posterImage = [UIImage imageWithCGImage: posterImageRef];
         
@@ -187,14 +258,14 @@
     }
 }
 
-- (void)getThumbnailWithAsset: (id)asset completion: (didFinishPhotoHandle)completion {
-    if (iOS8Later) {
-        [self getImageWithAsset: asset imageWith: AlbumListCellHeight + 10 completion:^(UIImage *resultImage, NSDictionary *resultDict, BOOL degraded) {
+- (void)thumbnailWithAsset: (id)asset width: (CGFloat)width completion: (didFinishPhotoHandle)completion {
+    if ([asset isKindOfClass: [PHAsset class]]) {
+        [self imageWithAsset: asset imageWith: width completion:^(UIImage *resultImage, NSDictionary *resultDict, BOOL degraded) {
             if (completion) {
                 completion(resultImage);
             }
         }];
-    } else {
+    } else if ([asset isKindOfClass: [ALAsset class]]) {
         ALAsset *photoAsset = (ALAsset *)asset;
         ALAssetRepresentation *assetRepresentation = [photoAsset defaultRepresentation];
         CGImageRef photoRef = photoAsset.thumbnail;
@@ -205,47 +276,37 @@
             completion(resultImage);
         }
     }
-    
 }
 
-- (void)getFullScreenImageWithAsset: (id)asset completion: (didFinishPhotoHandle)completion {
-    if (iOS8Later) {
-        [self getImageWithAsset: asset imageWith: [UIScreen mainScreen].bounds.size.width completion:^(UIImage *resultImage, NSDictionary *resultDict, BOOL degraded) {
-            if (completion) {
-                completion(resultImage);
+- (void)fullScreenImageWithAsset: (id)asset completion: (didFinishPhotoHandle)completion {
+    [self photoWithAsset: asset width: [UIScreen mainScreen].bounds.size.width completion:^(UIImage *resultImage, NSDictionary *info, BOOL isDegraded) {
+        completion(resultImage);
+    }];
+}
+
+- (void)originalImageWithAsset: (id)asset completion: (didFinishPhotoInfoHandle)completion {
+    if ([asset isKindOfClass: [PHAsset class]]) {
+        PHImageRequestOptions *option = [[PHImageRequestOptions alloc] init];
+        option.networkAccessAllowed = YES;
+        option.progressHandler = ^(double progress, NSError *__nullable error, BOOL *stop, NSDictionary *__nullable info) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                NSLog(@"originalImageProgress: %lf", progress);
+            });
+        };
+        [[PHImageManager defaultManager] requestImageForAsset: asset
+                                                   targetSize: PHImageManagerMaximumSize
+                                                  contentMode: PHImageContentModeAspectFill
+                                                      options: option
+                                                resultHandler:^(UIImage * _Nullable result, NSDictionary * _Nullable info) {
+            BOOL downloadFinined = (![[info objectForKey: PHImageCancelledKey] boolValue] && ![info objectForKey: PHImageErrorKey]);
+            BOOL degraded = [[info objectForKey: PHImageResultIsDegradedKey] boolValue];
+            if (downloadFinined && result && !degraded) {
+                if (completion) {
+                    completion(result, info);
+                }
             }
         }];
-    } else {
-        ALAsset *resultAsset = (ALAsset *)asset;
-        ALAssetRepresentation *represent = [resultAsset defaultRepresentation];
-        CGImageRef imageRef = represent.fullScreenImage;
-        UIImage *resultImage = [UIImage imageWithCGImage: imageRef
-                                                   scale: represent.scale
-                                             orientation: (UIImageOrientation)represent.orientation];
-        if (completion) {
-            completion(resultImage);
-        }
-    }
-}
-
-- (void)getOriginalImageWithAsset: (id)asset completion: (didFinishPhotoInfoHandle)completion {
-    if (iOS8Later) {
-       PHImageRequestOptions *option = [[PHImageRequestOptions alloc] init];
-       option.networkAccessAllowed = YES;
-       [[PHImageManager defaultManager] requestImageForAsset: asset
-                                                  targetSize: PHImageManagerMaximumSize
-                                                 contentMode: PHImageContentModeAspectFill
-                                                     options: option
-                                               resultHandler:^(UIImage * _Nullable result, NSDictionary * _Nullable info) {
-           BOOL downloadFinined = (![[info objectForKey: PHImageCancelledKey] boolValue] && ![info objectForKey: PHImageErrorKey]);
-           BOOL degraded = [[info objectForKey: PHImageResultIsDegradedKey] boolValue];
-           if (downloadFinined && result && !degraded) {
-               if (completion) {
-                   completion(result, info);
-               }
-            }
-       }];
-    } else {
+    } else if ([asset isKindOfClass: [ALAsset class]]) {
         ALAsset *photoAsset = (ALAsset *)asset;
         ALAssetRepresentation *assetRepresentation = [photoAsset defaultRepresentation];
         
@@ -275,25 +336,46 @@
             UIImage *originalImage = [UIImage imageWithCGImage: photoRef
                                                          scale: [assetRepresentation scale]
                                                    orientation: (UIImageOrientation)[assetRepresentation orientation]];
-            dispatch_async(dispatch_get_main_queue(), ^{
-                if (completion) {
-                    completion(originalImage, nil);
-                }
-            });
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    if (completion) {
+                        completion(originalImage, nil);
+                     }
+                });
         });
     }
 }
 
-- (void)getPhotoWithAsset: (id)asset completion: (didFinishPhotoInfoWithDegradHandle)completion {
-    [self getImageWithAsset: asset imageWith: [UIScreen mainScreen].bounds.size.width completion:^(UIImage *resultImage, NSDictionary *resultDict, BOOL degraded) {
+- (void)photoWithAsset: (id)asset width: (CGFloat)width completion: (didFinishPhotoInfoWithDegradHandle)completion {
+    if ([asset isKindOfClass: [PHAsset class]]) {
+        [self imageWithAsset: asset imageWith: width completion:^(UIImage *resultImage, NSDictionary *resultDict, BOOL degraded) {
+            if (completion) {
+                completion(resultImage, resultDict, degraded);
+            }
+        }];
+    } else if ([asset isKindOfClass: [ALAsset class]]) {
+        ALAsset *photoAsset = (ALAsset *)asset;
+        ALAssetRepresentation *assetRepresentation = [photoAsset defaultRepresentation];
+        CGImageRef photoRef = assetRepresentation.fullScreenImage;
+        UIImage *resultImage = [UIImage imageWithCGImage: photoRef
+                                                   scale: [assetRepresentation scale]
+                                             orientation: UIImageOrientationUp];
         if (completion) {
-            completion(resultImage, resultDict, degraded);
+            completion(resultImage, nil, nil);
         }
-    }];
+    }
 }
 
-- (void)getLivePhotoWithAsset: (id)asset completion: (didFinishLivePhotoInfoWithDegradHandle)completion {
+- (void)livePhotoWithAsset: (id)asset completion: (didFinishLivePhotoInfoWithDegradHandle)completion {
     if (!iOS9_1Later) {
+        return;
+    }
+    
+    if (![asset isKindOfClass: [PHAsset class]]) {
+        return;
+    }
+    
+    PHAsset *phAsset = (PHAsset *)asset;
+    if (phAsset.mediaSubtypes != PHAssetMediaSubtypePhotoLive) {
         return;
     }
     
@@ -306,7 +388,7 @@
         });
     };
     
-    [[PHImageManager defaultManager] requestLivePhotoForAsset: asset targetSize: [UIScreen mainScreen].bounds.size contentMode: PHImageContentModeAspectFit options: livePhotoOptions resultHandler:^(PHLivePhoto * _Nullable livePhoto, NSDictionary * _Nullable info) {
+    [[PHImageManager defaultManager] requestLivePhotoForAsset: phAsset targetSize: [UIScreen mainScreen].bounds.size contentMode: PHImageContentModeAspectFit options: livePhotoOptions resultHandler:^(PHLivePhoto * _Nullable livePhoto, NSDictionary * _Nullable info) {
         if (!livePhoto) {
             return ;
         }
@@ -343,7 +425,112 @@
     }
 }
 
-- (void)getImageWithAsset: (id)asset imageWith: (CGFloat)imageWidth completion: (void(^)(UIImage *resultImage, NSDictionary *resultDict, BOOL degraded))completion {
+- (void)createAlbumWithTitle:(NSString *)title completion: (void(^)(id assetGroup))completion {
+    if (iOS8Later) {
+        __block NSString *localIndentifier;
+        [[PHPhotoLibrary sharedPhotoLibrary] performChanges:^{
+            localIndentifier = [PHAssetCollectionChangeRequest creationRequestForAssetCollectionWithTitle: title].placeholderForCreatedAssetCollection.localIdentifier;
+        } completionHandler:^(BOOL success, NSError * _Nullable error) {
+            if (!success) {
+                NSLog(@"Error: %@", [error localizedDescription]);
+            }
+            
+            if (success && completion) {
+                completion(localIndentifier);
+            }
+        }];
+    } else {
+        [self.assetsLibrary addAssetsGroupAlbumWithName: title resultBlock:^(ALAssetsGroup *group) {
+            if (group && completion) {
+                completion(group);
+            }
+        } failureBlock:^(NSError *error) {
+            NSLog(@"Error: %@", [error localizedDescription]);
+        }];
+    }
+}
+
+- (void)saveImageToAlbum: (id)album image: (UIImage *)image completion: (void(^)(BOOL success))completion {
+    if (!album && !image) {
+        return;
+    }
+    
+    //ALAssetsGroup不能直接存储图片，只能添加ALAsset
+    //存储图片步骤：
+    //1.存储图片到本地相机相册，成功后获取一个AssetUrl
+    //2.通过AssetUrl获得一个Asset
+    //3.将Asset添加到相应的AssetGroup里面
+    //注意：删除本地相册的相机照片，相应的相册里面的照片也会被删除，因为它们是同一个Asset
+    if ([album isKindOfClass: [ALAssetsGroup class]]) {
+        ALAssetsGroup *assetGroup = (ALAssetsGroup *)album;
+        
+        __weak typeof(self) weakSelf = self;
+        [self assetUrlWithImage: image completion:^(NSURL *assetURL) {
+            __strong typeof(weakSelf) strongSelf = weakSelf;
+            [strongSelf assetWithUrl: assetURL completion:^(ALAsset *asset) {
+                [assetGroup addAsset: asset];
+                if (completion) {
+                    completion(YES);
+                }
+            }];
+        }];
+        return;
+    }
+    
+    //Photos框架可以直接存储照片
+    if ([album isKindOfClass: [PHAssetCollection class]]) {
+        [[PHPhotoLibrary sharedPhotoLibrary] performChanges:^{
+            PHAssetChangeRequest *phAssetRequest = [PHAssetChangeRequest creationRequestForAssetFromImage: image];
+            PHAssetCollectionChangeRequest *phAssetCollectionRequest = [PHAssetCollectionChangeRequest changeRequestForAssetCollection: album];
+            [phAssetCollectionRequest addAssets: @[[phAssetRequest placeholderForCreatedAsset ]]];
+        } completionHandler:^(BOOL success, NSError * _Nullable error) {
+            if (!success) {
+                NSLog(@"Error: %@", error);
+            }
+            if (completion) {
+                completion(success);
+            }
+        }];
+        return;
+    }
+    
+    //在Photos框架里的每一相册都会有一个PHObjectPlaceholder，包含一个本地的localIdentifier
+    if ([album isKindOfClass: [NSString class]]) {
+        [[PHPhotoLibrary sharedPhotoLibrary] performChanges:^{
+            NSString *localIdentifier = (NSString *)album;
+            PHFetchResult *result = [PHAssetCollection fetchAssetCollectionsWithLocalIdentifiers: @[localIdentifier] options: nil];
+            PHAssetCollectionChangeRequest *phAssetCollectionRequest = [PHAssetCollectionChangeRequest changeRequestForAssetCollection: (PHAssetCollection *)[result objectAtIndex: 0]];
+            PHAssetChangeRequest *phAssetRequest = [PHAssetChangeRequest creationRequestForAssetFromImage: image];
+            [phAssetCollectionRequest addAssets: @[[phAssetRequest placeholderForCreatedAsset]]];
+        } completionHandler:^(BOOL success, NSError * _Nullable error) {
+            if (completion) {
+                completion(success);
+            }
+        }];
+        return;
+    }
+    
+    //没有指定相册就直接存储在本地默认相册
+    if (iOS8Later) {
+        [[PHPhotoLibrary sharedPhotoLibrary] performChanges:^{
+            [PHAssetChangeRequest creationRequestForAssetFromImage: image];
+        } completionHandler:^(BOOL success, NSError * _Nullable error) {
+            if (completion) {
+                completion(success);
+            }
+        }];
+    } else {
+        [self.assetsLibrary writeImageToSavedPhotosAlbum: image.CGImage orientation: (ALAssetOrientation)[image imageOrientation] completionBlock:^(NSURL *assetURL, NSError *error) {
+            if (assetURL && completion) {
+                completion(YES);
+            }
+        }];
+    }
+}
+
+#pragma mark - Private Method
+
+- (void)imageWithAsset: (id)asset imageWith: (CGFloat)imageWidth completion: (void(^)(UIImage *resultImage, NSDictionary *resultDict, BOOL degraded))completion {
     if (imageWidth > [UIScreen mainScreen].bounds.size.width) {
         imageWidth = [UIScreen mainScreen].bounds.size.width;
     }
@@ -408,167 +595,7 @@
     }
 }
 
-- (void)getAssetsWithFetchResult: (id)resultGroup allowPickingVideo: (BOOL)allowPickingVideo completion: (void(^)(NSArray<BMAlbumPhotoModel *> *assets))completion {
-    NSMutableArray *results = @[].mutableCopy;
-    if (iOS8Later) {
-        PHFetchResult *fetchResult = (PHFetchResult *)resultGroup;
-        [fetchResult enumerateObjectsUsingBlock:^(PHAsset *obj, NSUInteger idx, BOOL * _Nonnull stop) {
-            PHAsset *asset = (PHAsset *)obj;
-            BMAlbumModelMediaType type = BMAlbumModelMediaTypePhoto;
-            NSString *timeLength = @"";
-            switch (asset.mediaType) {
-                case PHAssetMediaTypeImage:
-                {
-                    if (iOS9_1Later && asset.mediaSubtypes == PHAssetMediaSubtypePhotoLive) {
-                        type = BMAlbumModelMediaTypeLivePhoto;
-                    } else {
-                        type = BMAlbumModelMediaTypePhoto;
-                    }
-                    break;
-                }
-                
-                case PHAssetMediaTypeVideo:
-                {
-                    type = BMAlbumModelMediaTypeVideo;
-                    timeLength = [self standardTimeFromDuration: asset.duration];
-                    break;
-                }
-                
-                case PHAssetMediaTypeAudio:
-                {
-                    type = BMAlbumModelMediaTypeAudio;
-                    break;
-                }
-                
-                case PHAssetMediaTypeUnknown:
-                default:
-                    break;
-            }
-            
-            if (!allowPickingVideo && type == BMAlbumModelMediaTypeVideo) {
-                return ;
-            }
-            
-            [results addObject: [BMAlbumPhotoModel modelWithAsset: asset type: type timeLength: timeLength]];
-        }];
-        
-        
-        if (completion) {
-            completion(results);
-        }
-    } else {
-        ALAssetsGroup *group = (ALAssetsGroup *)resultGroup;
-        if (!allowPickingVideo) {
-            [group setAssetsFilter: [ALAssetsFilter allPhotos]];
-        }
-        
-        [group enumerateAssetsUsingBlock:^(ALAsset *asset, NSUInteger index, BOOL *stop) {
-            if (!asset && completion) {
-                completion(results);
-            }
-            BMAlbumModelMediaType type = BMAlbumModelMediaTypePhoto;
-            if (!allowPickingVideo) {
-                [results addObject: [BMAlbumPhotoModel modelWithAsset: asset type: type]];
-            }
-            
-            if ([asset valueForProperty: ALAssetPropertyType] == ALAssetTypeVideo) {
-                type = BMAlbumModelMediaTypeVideo;
-                NSString *timeLength = [self standardTimeFromDuration: [[asset valueForProperty: ALAssetPropertyDuration] doubleValue]];
-                [results addObject: [BMAlbumPhotoModel modelWithAsset: asset type: type timeLength: timeLength]];
-            }
-        }];
-    }
-}
-
-- (void)createAlbumWithTitle:(NSString *)title completion: (void(^)(id assetGroup))completion {
-    if (iOS8Later) {
-        __block NSString *localIndentifier;
-        [[PHPhotoLibrary sharedPhotoLibrary] performChanges:^{
-            localIndentifier = [PHAssetCollectionChangeRequest creationRequestForAssetCollectionWithTitle: title].placeholderForCreatedAssetCollection.localIdentifier;
-        } completionHandler:^(BOOL success, NSError * _Nullable error) {
-                if (!success) {
-                    NSLog(@"Error: %@", [error localizedDescription]);
-                }
-                
-                if (completion) {
-                    completion(localIndentifier);
-                }
-        }];
-    } else {
-        [self.assetsLibrary addAssetsGroupAlbumWithName: title resultBlock:^(ALAssetsGroup *group) {
-            if (group && completion) {
-                completion(group);
-            }
-        } failureBlock:^(NSError *error) {
-            NSLog(@"Error: %@", [error localizedDescription]);
-        }];
-    }
-}
-
-- (void)saveImageWithAlbum: (id)album image: (UIImage *)image completion: (void(^)(BOOL success))completion {
-    if (!album || !image) {
-        return;
-    }
-    
-    if ([album isKindOfClass: [ALAssetsGroup class]]) {
-        ALAssetsGroup *assetGroup = (ALAssetsGroup *)album;
-        
-        __weak typeof(self) weakSelf = self;
-        [self addAsset: image completion:^(NSURL *assetURL) {
-        __strong typeof(weakSelf) strongSelf = weakSelf;
-            [strongSelf getAssetWithUrl: assetURL completion:^(ALAsset *asset) {
-                [assetGroup addAsset: asset];
-                if (completion) {
-                    completion(YES);
-                }
-            }];
-        }];
-        return;
-    }
-    
-    if ([album isKindOfClass: [NSString class]]) {
-        [[PHPhotoLibrary sharedPhotoLibrary] performChanges:^{
-            NSString *localIdentifier = (NSString *)album;
-            PHFetchResult *result = [PHAssetCollection fetchAssetCollectionsWithLocalIdentifiers: @[localIdentifier] options: nil];
-            PHAssetCollectionChangeRequest *phAssetCollectionRequest = [PHAssetCollectionChangeRequest changeRequestForAssetCollection: (PHAssetCollection *)[result objectAtIndex: 0]];
-            PHAssetChangeRequest *phAssetRequest = [PHAssetChangeRequest creationRequestForAssetFromImage: image];
-            [phAssetCollectionRequest addAssets: @[[phAssetRequest placeholderForCreatedAsset]]];
-        } completionHandler:^(BOOL success, NSError * _Nullable error) {
-            if (completion) {
-                completion(success);
-            }
-        }];
-        return;
-    }
-    
-    if ([album isKindOfClass: [PHAssetCollection class]]) {
-        [[PHPhotoLibrary sharedPhotoLibrary] performChanges:^{
-            PHAssetChangeRequest *phAssetRequest = [PHAssetChangeRequest creationRequestForAssetFromImage: image];
-            PHAssetCollectionChangeRequest *phAssetCollectionRequest = [PHAssetCollectionChangeRequest changeRequestForAssetCollection: album];
-            [phAssetCollectionRequest addAssets: @[[phAssetRequest placeholderForCreatedAsset ]]];
-        } completionHandler:^(BOOL success, NSError * _Nullable error) {
-            if (!success) {
-                NSLog(@"Error: %@", error);
-            }
-            if (completion) {
-                completion(success);
-            }
-        }];
-        return;
-    }
-    
-    if (iOS8Later) {
-        [[PHPhotoLibrary sharedPhotoLibrary] performChanges:^{
-            [PHAssetChangeRequest creationRequestForAssetFromImage: image];
-        } completionHandler:^(BOOL success, NSError * _Nullable error) {
-            if (completion) {
-                completion(success);
-            }
-        }];
-    }
-}
-
-- (void)addAsset: (UIImage *)image completion: (void(^)(NSURL *assetURL))completion {
+- (void)assetUrlWithImage: (UIImage *)image completion: (void(^)(NSURL *assetURL))completion {
     [self.assetsLibrary writeImageToSavedPhotosAlbum: image.CGImage orientation: (ALAssetOrientation)[image imageOrientation] completionBlock:^(NSURL *assetURL, NSError *error) {
         if (assetURL && completion) {
             completion(assetURL);
@@ -576,7 +603,7 @@
     }];
 }
 
-- (void)getAssetWithUrl: (NSURL *)url completion: (void(^)(ALAsset *asset))completion {
+- (void)assetWithUrl: (NSURL *)url completion: (void(^)(ALAsset *asset))completion {
     [self.assetsLibrary assetForURL: url resultBlock:^(ALAsset *asset) {
         if (completion) {
             completion(asset);
@@ -585,8 +612,6 @@
         NSLog(@"Error: %@", [error localizedDescription]);
     }];
 }
-
-#pragma mark - Private Method
 
 - (BMAlbumDataModel *)modelWithAssetResult: (id)assetResult name: (NSString *)albumName {
     BMAlbumDataModel *model = [BMAlbumDataModel new];
