@@ -250,8 +250,13 @@
 
 - (void)playLivePhoto: (UIButton *)button {
     button.selected = !button.selected;
+    BMAlbumPhotoModel *model = self.photoAssets[_currentIndex];
     PhotoPickerCell *cell = (PhotoPickerCell *)[self.photoScrollView cellForItemAtIndexPath: [NSIndexPath indexPathForRow: _currentIndex inSection: 0]];
-    [cell playLivePhoto: button.selected];
+    if (model.type == BMAlbumModelMediaTypeVideo) {
+        [cell handleVideoPlay];
+    } else if (model.type == BMAlbumModelMediaTypeLivePhoto) {
+        [cell playLivePhoto: button.selected];
+    }
 }
 
 #pragma mark - Private Methods
@@ -283,18 +288,19 @@
     } completion:^(BOOL finished) {}];
 }
 
-- (void)showToolBarAndNavigationBar: (BOOL)isShow {
+- (void)showToolBarAndNavigationBar: (BOOL)isHide {
     if ([[UIDevice currentDevice].systemVersion floatValue] >= 9.0) {
+        self.hideNavigationBar = isHide;    //解决滑动时StatusBar没有和NavigationBar一起出现
         [self setNeedsStatusBarAppearanceUpdate];
     } else {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
-        [[UIApplication sharedApplication] setStatusBarHidden: isShow withAnimation: UIStatusBarAnimationSlide];
+        [[UIApplication sharedApplication] setStatusBarHidden: isHide withAnimation: UIStatusBarAnimationSlide];
     }
 #pragma clang diagnostic pop
-    [self.navigationController setNavigationBarHidden: isShow animated: YES];
+    [self.navigationController setNavigationBarHidden: isHide animated: YES];
     
-    if (isShow) {
+    if (isHide) {
         [UIView animateWithDuration: 0.2 animations:^{
             self.photoToolBar.transform = CGAffineTransformMakeTranslation(0, 44);
         }];
@@ -302,6 +308,12 @@
         [UIView animateWithDuration: 0.2 animations:^{
             self.photoToolBar.transform = CGAffineTransformIdentity;
         }];
+    }
+    
+    BMAlbumPhotoModel *model = self.photoAssets[_currentIndex];
+    if (model.type == BMAlbumModelMediaTypeLivePhoto) {
+        PhotoPickerCell *cell = (PhotoPickerCell *)[self.photoScrollView cellForItemAtIndexPath: [NSIndexPath indexPathForRow: _currentIndex inSection: 0]];
+        [cell livePhotoBadgeAnimationWithMoved: isHide];
     }
 }
 
@@ -325,6 +337,9 @@
     [self showPhotoSeleted: model.isSelected showAnimation: NO];
     if (model.type == BMAlbumModelMediaTypeLivePhoto) {
         self.livePhotoPlayButton.hidden = NO;
+    } else if (model.type == BMAlbumModelMediaTypeVideo) {
+        PhotoPickerCell *cell = (PhotoPickerCell *)[self.photoScrollView cellForItemAtIndexPath: [NSIndexPath indexPathForRow: _currentIndex inSection: 0]];
+        self.livePhotoPlayButton.hidden = !cell.played;
     } else {
         self.livePhotoPlayButton.hidden = YES;
     }
@@ -404,6 +419,18 @@
         __strong typeof(weakSelf) strongSelf = weakSelf;
         strongSelf.hideNavigationBar = !weakSelf.hideNavigationBar;
         [strongSelf showToolBarAndNavigationBar: strongSelf.hideNavigationBar];
+    };
+    cell.videoPlayBlock = ^{
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        strongSelf.livePhotoPlayButton.hidden = NO;
+        strongSelf.livePhotoPlayButton.selected = YES;
+        [strongSelf showToolBarAndNavigationBar: YES];
+    };
+    cell.videoPauseBlock = ^{
+        __strong typeof(weakSelf) strongSelf = weakSelf;
+        strongSelf.livePhotoPlayButton.hidden = NO;
+        strongSelf.livePhotoPlayButton.selected = NO;
+        [strongSelf showToolBarAndNavigationBar: NO];
     };
     BMAlbumPhotoModel *model = self.photoAssets[indexPath.row];
     [cell setPhotoModel: model];

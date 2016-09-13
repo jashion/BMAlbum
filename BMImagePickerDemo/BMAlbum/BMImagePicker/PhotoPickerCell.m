@@ -94,6 +94,7 @@ typedef NS_ENUM(NSUInteger, BMPlayerStatus) {
         self.livePhotoBadgeView.image = [PHLivePhotoView livePhotoBadgeImageWithOptions: PHLivePhotoBadgeOptionsOverContent];
         return;
     }
+    
     [[BMAlbumManager sharedInstance] fullScreenImageWithAsset: _model.asset completion:^(UIImage *resultImage) {
         self.imageView.image = resultImage;
         self.livePhotoBadgeView.hidden = YES;
@@ -104,6 +105,7 @@ typedef NS_ENUM(NSUInteger, BMPlayerStatus) {
             self.imageView.frame = self.bounds;
             self.playerLayer.hidden = NO;
             self.playButton.hidden = NO;
+            self.played = NO;
         } else {
             [self autoLayoutImageView];
             [self pauseVideo];
@@ -117,7 +119,6 @@ typedef NS_ENUM(NSUInteger, BMPlayerStatus) {
     [[BMAlbumManager sharedInstance] getVideoWithAsset: _model.asset completion:^(AVPlayerItem *playerItem, NSDictionary *info) {
         dispatch_async(dispatch_get_main_queue(), ^{
             self.playerItem = playerItem;
-            self.playerItem.canUseNetworkResourcesForLiveStreamingWhilePaused = YES;
             self.player = [AVPlayer playerWithPlayerItem: self.playerItem];
             self.playerLayer = [AVPlayerLayer playerLayerWithPlayer: self.player];
             self.playerLayer.videoGravity = AVLayerVideoGravityResizeAspect;
@@ -195,6 +196,7 @@ typedef NS_ENUM(NSUInteger, BMPlayerStatus) {
     }
 }
 
+//重置video和LivePhoto的播放状态
 - (void)resetAllStatus {
     if (self.player.currentItem) {
         [self pauseVideo];
@@ -205,15 +207,35 @@ typedef NS_ENUM(NSUInteger, BMPlayerStatus) {
     }
 }
 
+//一个LivePhotoBadegImageView跟随NavigationBar一起移动的动画
+- (void)livePhotoBadgeAnimationWithMoved: (BOOL)moved {
+    if (moved) {
+        [UIView animateWithDuration: 0.2 animations:^{
+            self.livePhotoBadgeView.transform = CGAffineTransformMakeTranslation(0, - 64);
+        }];
+    } else {
+        [UIView animateWithDuration: 0.2 animations:^{
+            self.livePhotoBadgeView.transform = CGAffineTransformIdentity;
+        }];
+    }
+}
+
 #pragma mark - Event Response
 
 - (void)handlePlay: (UIButton *)button {
     if (!self.player) {
-        [_playButton setImage: nil forState: UIControlStateNormal];
+        self.playButton.hidden = YES;
         [self startIndicator];
         [self loadVideo];
         return;
     }
+    
+    self.playButton.hidden = YES;
+    [self handleVideoPlay];
+}
+
+//当视频播放完成时，重置播放进度，重新播放
+- (void)handleVideoPlay {
     CMTime currentTime = _player.currentItem.currentTime;
     CMTime durationTime = _player.currentItem.duration;
     if (_player.rate == 0.0f) {
@@ -238,12 +260,23 @@ typedef NS_ENUM(NSUInteger, BMPlayerStatus) {
 
 - (void)pauseVideo {
     [self.player pause];
-    [self.playButton setImage: [UIImage imageNamed:@"VideoPlayIcon"] forState: UIControlStateNormal];
+    if (self.videoPauseBlock) {
+        self.videoPauseBlock();
+    }
 }
 
 - (void)playVideo {
     [self.player play];
-    [self.playButton setImage: nil forState: UIControlStateNormal];
+}
+
+- (void)playVideoAtFirst {
+    self.played = YES;
+    [self stopIndictor];
+    [self playVideo];
+    self.playButton.hidden = YES;
+    if (self.videoPlayBlock) {
+        self.videoPlayBlock();
+    }
 }
 
 - (void)playbackStalledWithNotification: (NSNotification *)notification {
@@ -251,30 +284,10 @@ typedef NS_ENUM(NSUInteger, BMPlayerStatus) {
 }
 
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary<NSString *,id> *)change context:(void *)context {
-    if ([object isKindOfClass: [AVPlayerItem class]]) {
+    if ([keyPath isEqualToString: @"status"]) {
         AVPlayerItem *changePlayerItem = (AVPlayerItem *)object;
-        switch (changePlayerItem.status) {
-            case AVPlayerItemStatusUnknown:
-            {
-                [self pauseVideo];
-                break;
-            }
-            
-            case AVPlayerItemStatusReadyToPlay:
-            {
-                [self stopIndictor];
-                [self playVideo];
-                break;
-            }
-
-            case AVPlayerItemStatusFailed:
-            {
-                [self pauseVideo];
-                break;
-            }
-                
-            default:
-                break;
+        if (changePlayerItem.status == AVPlayerItemStatusReadyToPlay) {
+            [self playVideoAtFirst];
         }
     }
 }
