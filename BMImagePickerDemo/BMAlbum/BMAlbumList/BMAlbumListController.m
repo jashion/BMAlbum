@@ -24,6 +24,7 @@
 @property (nonatomic, strong) NSMutableArray *albumList;
 @property (nonatomic, strong) NSMutableArray *fetchResults;
 @property (nonatomic, strong) NSMutableArray *phAssetCollections;
+@property (nonatomic, strong) UIView *unauthorizationView;
 
 @end
 
@@ -35,18 +36,28 @@
 
     self.view.backgroundColor = [UIColor whiteColor];        self.navigationItem.title = @"照片";
     self.navigationController.navigationBar.titleTextAttributes = @{NSFontAttributeName : [UIFont systemFontOfSize: 17], NSForegroundColorAttributeName : [UIColor blackColor]};
-    [BMIndicator startIndicatorWithType: BMIndicatorTypeDefault];
-    [self configureNavigationButton];
-    [self configureTable];
+    [self configureNavigationCancelButton];
+    [self showViewWithAuthorization: [[BMAlbumManager sharedInstance] authorizationStatusAuthoried]];
 }
 
 - (void)dealloc {
     [[PHPhotoLibrary sharedPhotoLibrary] unregisterChangeObserver: self];
+    [[NSNotificationCenter defaultCenter] removeObserver: self name: UIApplicationDidBecomeActiveNotification object: nil];
 }
 
 #pragma mark - Configure
 
-- (void)configureNavigationButton {
+- (void)configureNavigationCreateButton {
+    UIButton *createButton = [UIButton buttonWithType: UIButtonTypeCustom];
+    createButton.frame = CGRectMake(0, 0, 40, 44);
+    createButton.titleLabel.font = [UIFont systemFontOfSize: 16];
+    [createButton setTitle: @"创建" forState: UIControlStateNormal];
+    [createButton setTitleColor: [UIColor blackColor] forState: UIControlStateNormal];
+    [createButton addTarget: self action: @selector(createAlbum) forControlEvents: UIControlEventTouchUpInside];
+    self.navigationItem.leftBarButtonItem = [[UIBarButtonItem alloc] initWithCustomView: createButton];
+}
+
+- (void)configureNavigationCancelButton {
     UIButton *cancelButton = [UIButton buttonWithType: UIButtonTypeCustom];
     cancelButton.frame = CGRectMake(0, 0, 40, 44);
     cancelButton.titleLabel.font = [UIFont systemFontOfSize: 16];
@@ -54,16 +65,7 @@
     [cancelButton setTitleEdgeInsets: UIEdgeInsetsMake(0, 0, 0, - 10)];
     [cancelButton setTitleColor: [UIColor blackColor] forState: UIControlStateNormal];
     [cancelButton addTarget: self action: @selector(cancel) forControlEvents: UIControlEventTouchUpInside];
-    
-    UIButton *createButton = [UIButton buttonWithType: UIButtonTypeCustom];
-    createButton.frame = CGRectMake(0, 0, 40, 44);
-    createButton.titleLabel.font = [UIFont systemFontOfSize: 16];
-    [createButton setTitle: @"创建" forState: UIControlStateNormal];
-    [createButton setTitleColor: [UIColor blackColor] forState: UIControlStateNormal];
-    [createButton addTarget: self action: @selector(createAlbum) forControlEvents: UIControlEventTouchUpInside];
-    
     self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithCustomView: cancelButton];
-    self.navigationItem.leftBarButtonItem = [[UIBarButtonItem alloc] initWithCustomView: createButton];
 }
 
 - (void)configureTable {
@@ -77,7 +79,47 @@
     [self reloadTableData];
 }
 
+- (void)configureUnauthorization {
+    self.unauthorizationView = [[UIView alloc] initWithFrame: self.view.bounds];
+    self.unauthorizationView.backgroundColor = [UIColor whiteColor];
+    [self.view addSubview: self.unauthorizationView];
+    NSString *appName = [[NSBundle mainBundle].infoDictionary valueForKey: @"CFBundleDisplayName"];
+    if (!appName) {
+        appName = [[NSBundle mainBundle].infoDictionary valueForKey: @"CFBundleName"];
+    }
+    NSString *showContent = [NSString stringWithFormat: @"请在%@的\"设置-隐私-照片\"选项中，\r允许%@访问你的手机相册。", [UIDevice currentDevice].model, appName];
+    UILabel *desLabel = [[UILabel alloc] init];
+    desLabel.bounds = CGRectMake(0, 0, self.view.frame.size.width, 30);
+    desLabel.center = CGPointMake(CGRectGetWidth(self.view.frame) * 0.5, CGRectGetHeight(self.view.frame) * 0.5);
+    desLabel.font = [UIFont systemFontOfSize: 16];
+    desLabel.textColor = [UIColor blackColor];
+    desLabel.textAlignment = NSTextAlignmentCenter;
+    desLabel.text = showContent;
+    [self.unauthorizationView addSubview: desLabel];
+}
+
 #pragma mark - Private Method
+
+- (void)showViewWithAuthorization: (BOOL)authorization {
+    if (authorization) {
+        if (self.unauthorizationView.superview) {
+            [self.unauthorizationView removeFromSuperview];
+            self.unauthorizationView = nil;
+        }
+        [self configureNavigationCreateButton];
+        [BMIndicator startIndicatorWithType: BMIndicatorTypeDefault];
+        [self configureTable];
+    } else {
+        [self configureUnauthorization];
+        [[NSNotificationCenter defaultCenter] addObserver: self selector: @selector(userAuthorization:) name: UIApplicationDidBecomeActiveNotification object: nil];
+    }
+}
+
+- (void)userAuthorization: (NSNotification *)notification {
+    if ([[BMAlbumManager sharedInstance] authorizationStatusAuthoried]) {
+        [self showViewWithAuthorization: YES];
+    }
+}
 
 - (void)reloadTableData {
     BMAlbumNavigationController *bmNav = (BMAlbumNavigationController *)self.navigationController;
