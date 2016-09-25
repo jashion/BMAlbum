@@ -74,6 +74,7 @@
     self.albumListTable.dataSource = self;
     self.albumListTable.delegate = self;
     self.albumListTable.scrollsToTop = YES;
+    self.albumListTable.autoresizingMask =  UIViewAutoresizingFlexibleRightMargin | UIViewAutoresizingFlexibleHeight;
     [self.albumListTable registerClass: [AlbumListCell class] forCellReuseIdentifier: NSStringFromClass([AlbumListCell class])];
     [self.view addSubview: self.albumListTable];
     [self reloadTableData];

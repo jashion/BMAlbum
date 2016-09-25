@@ -48,7 +48,7 @@
 #pragma mark - Public Method
 
 - (BOOL)authorizationStatusAuthoried {
-    if (iOS8Later && ([PHPhotoLibrary authorizationStatus] == ALAuthorizationStatusAuthorized)) {
+    if (iOS8Later && ([PHPhotoLibrary authorizationStatus] == PHAuthorizationStatusAuthorized)) {
         return YES;
     } else if ([ALAssetsLibrary authorizationStatus] == ALAuthorizationStatusAuthorized){
         return YES;
