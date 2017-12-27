@@ -9,6 +9,7 @@
 #import "AlbumCollectionCell.h"
 #import "BMAlbumManager.h"
 #import <PhotosUI/PhotosUI.h>
+#import "Utils.h"
 
 static CGFloat cellWith = 80;
 
@@ -95,8 +96,10 @@ static CGFloat cellWith = 80;
         self.livePhotoBadgeImageView.image = nil;
     }
     
+    @weakify(self)
     [[BMAlbumManager sharedInstance] thumbnailWithAsset: model.asset width: cellWith completion:^(UIImage *resultImage) {
-        _imageView.image = resultImage;
+        @strongify(self)
+        self.imageView.image = resultImage;
     }];
 }
 

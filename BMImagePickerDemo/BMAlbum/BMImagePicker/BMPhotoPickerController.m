@@ -321,45 +321,6 @@
     [cell resetAllStatus];
 }
 
-#pragma mark - UIScrollViewDelegate
-
-- (void)scrollViewDidScroll:(UIScrollView *)scrollView {
-    CGFloat offsetX = scrollView.contentOffset.x;
-    CGFloat photoOffset = CGRectGetWidth(self.view.frame) + lineSpace;
-    if (offsetX <= 0) {
-        _currentIndex = 0;
-    } else if (offsetX >= photoOffset * self.photoAssets.count) {
-        _currentIndex = self.photoAssets.count - 1;
-    } else {
-        _currentIndex = floor((scrollView.contentOffset.x + CGRectGetWidth(self.view.frame) * 0.5) / photoOffset);
-    }
-    BMAlbumPhotoModel *model = self.photoAssets[_currentIndex];
-    [self showPhotoSeleted: model.isSelected showAnimation: NO];
-    if (model.type == BMAlbumModelMediaTypeLivePhoto) {
-        self.livePhotoPlayButton.hidden = NO;
-    } else if (model.type == BMAlbumModelMediaTypeVideo) {
-        PhotoPickerCell *cell = (PhotoPickerCell *)[self.photoScrollView cellForItemAtIndexPath: [NSIndexPath indexPathForRow: _currentIndex inSection: 0]];
-        self.livePhotoPlayButton.hidden = !cell.played;
-    } else {
-        self.livePhotoPlayButton.hidden = YES;
-    }
-    
-    NSInteger befIndex = 0;
-    NSInteger afterIndex = 0;
-    if (_currentIndex == 0) {
-        befIndex = 0;
-        afterIndex = 1;
-    } else if (_currentIndex == self.photoAssets.count - 1) {
-        befIndex = self.photoAssets.count - 2;
-        afterIndex = self.photoAssets.count - 1;
-    } else {
-        befIndex = _currentIndex - 1;
-        afterIndex = _currentIndex + 1;
-    }
-    [self resetWithCell: (PhotoPickerCell *)[self.photoScrollView cellForItemAtIndexPath: [NSIndexPath indexPathForRow: befIndex inSection: 0]]];
-    [self resetWithCell: (PhotoPickerCell *)[self.photoScrollView cellForItemAtIndexPath: [NSIndexPath indexPathForRow: afterIndex inSection: 0]]];
-}
-
 #pragma mark - Custom Accessors
 
 - (UIImageView *)photoNumBackground {
@@ -442,6 +403,35 @@
 
 - (void)collectionView:(UICollectionView *)collectionView didSelectItemAtIndexPath:(NSIndexPath *)indexPath {
 
+}
+
+- (void)collectionView:(UICollectionView *)collectionView didEndDisplayingCell:(UICollectionViewCell *)cell forItemAtIndexPath:(NSIndexPath *)indexPath {
+    _currentIndex = indexPath.row;
+    BMAlbumPhotoModel *model = self.photoAssets[_currentIndex];
+    [self showPhotoSeleted: model.isSelected showAnimation: NO];
+    if (model.type == BMAlbumModelMediaTypeLivePhoto) {
+        self.livePhotoPlayButton.hidden = NO;
+    } else if (model.type == BMAlbumModelMediaTypeVideo) {
+        PhotoPickerCell *photoCell = (PhotoPickerCell *)cell;
+        self.livePhotoPlayButton.hidden = !photoCell.played;
+    } else {
+        self.livePhotoPlayButton.hidden = YES;
+    }
+    
+    NSInteger befIndex = 0;
+    NSInteger afterIndex = 0;
+    if (_currentIndex == 0) {
+        befIndex = 0;
+        afterIndex = 1;
+    } else if (_currentIndex == self.photoAssets.count - 1) {
+        befIndex = self.photoAssets.count - 2;
+        afterIndex = self.photoAssets.count - 1;
+    } else {
+        befIndex = _currentIndex - 1;
+        afterIndex = _currentIndex + 1;
+    }
+    [self resetWithCell: (PhotoPickerCell *)[self.photoScrollView cellForItemAtIndexPath: [NSIndexPath indexPathForRow: befIndex inSection: 0]]];
+    [self resetWithCell: (PhotoPickerCell *)[self.photoScrollView cellForItemAtIndexPath: [NSIndexPath indexPathForRow: afterIndex inSection: 0]]];
 }
 
 #pragma mark - Override

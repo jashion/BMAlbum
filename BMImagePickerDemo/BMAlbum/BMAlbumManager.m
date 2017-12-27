@@ -7,7 +7,8 @@
 //
 
 #import "BMAlbumManager.h"
-#import "BMAlbumGlobalDefine.h"
+#import <MobileCoreServices/MobileCoreServices.h>
+#import "Utils.h"
 
 @interface BMAlbumManager ()
 
@@ -397,6 +398,74 @@
             completion(livePhoto, info);
         }
     }];
+}
+
+- (void)fullScreenImageWithAsset: (id)asset imageCompletion: (didFinishPhotoInfoHandle)imageCompletion gifCompletion: (didFinishGIFInfoWithDegradHandle)gifCompletion {
+    [self photoWithAsset: asset width: [UIScreen mainScreen].bounds.size.width completion:^(UIImage *resultImage, NSDictionary *info, BOOL isDegraded) {
+        if (imageCompletion) {
+            imageCompletion(resultImage, info);
+        }
+    }];
+    if ([asset isKindOfClass: [PHAsset class]]) {
+        NSArray *array = [PHAssetResource assetResourcesForAsset: asset];
+        __block BOOL isGif;
+        [array enumerateObjectsUsingBlock:^(id  _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+            PHAssetResource *resource = obj;
+            if ([resource.uniformTypeIdentifier isEqualToString: (__bridge NSString*)kUTTypeGIF]) {
+                isGif = YES;
+                *stop = YES;
+            }
+        }];
+        if (!isGif) {
+            return;
+        }
+        dispatch_async(dispatch_get_global_queue(0, 0), ^{
+            PHImageRequestOptions *option = [[PHImageRequestOptions alloc] init];
+            option.networkAccessAllowed = YES;
+            [[PHImageManager defaultManager] requestImageDataForAsset: asset options: option resultHandler:^(NSData * _Nullable imageData, NSString * _Nullable dataUTI, UIImageOrientation orientation, NSDictionary * _Nullable info) {
+                BOOL downloadFinined = (![[info objectForKey: PHImageCancelledKey] boolValue] && ![info objectForKey: PHImageErrorKey]);
+                BOOL degraded = [[info objectForKey: PHImageResultIsDegradedKey] boolValue];
+                if (downloadFinined && !degraded && imageData.length > 0) {
+                    CGImageSourceRef imageSource = CGImageSourceCreateWithData((__bridge CFDataRef)imageData, NULL);
+                    size_t count = CGImageSourceGetCount(imageSource);
+                    NSMutableArray *images = @[].mutableCopy;
+                    for (int index = 0; index < count; index++) {
+                        CGImageRef imageRef = CGImageSourceCreateImageAtIndex(imageSource, index, NULL);
+                        UIImage *image = [UIImage imageWithCGImage: imageRef];
+                        CGImageRelease(imageRef);
+                        [images addObject: image];
+                    }
+                    dispatch_async(dispatch_get_main_queue(), ^{
+                        if (gifCompletion) {
+                            gifCompletion([images mutableCopy], info);
+                        }
+                    });
+                }
+            }];
+        });
+    } else if ([asset isKindOfClass: [ALAsset class]]) {
+        ALAsset *alAsset = (ALAsset *)asset;
+        ALAssetRepresentation *assetRepresentation = [alAsset representationForUTI: (__bridge NSString*)kUTTypeGIF];
+        if (assetRepresentation) {
+            long long size = assetRepresentation.size;
+            uint8_t *imageBuffer = malloc(size);
+            NSError *error;
+            NSUInteger bufferSize = [assetRepresentation getBytes: imageBuffer fromOffset: 0.0 length: size error: &error];
+            NSData *imageData = [NSData dataWithBytesNoCopy: imageBuffer length: bufferSize freeWhenDone: YES];
+            CGImageSourceRef imageSource = CGImageSourceCreateWithData((__bridge CFDataRef)imageData, NULL);
+            size_t count = CGImageSourceGetCount(imageSource);
+            NSMutableArray *images = @[].mutableCopy;
+            for (int index = 0; index < count; index++) {
+                CGImageRef imageRef = CGImageSourceCreateImageAtIndex(imageSource, index, NULL);
+                UIImage *image = [UIImage imageWithCGImage: imageRef];
+                CGImageRelease(imageRef);
+                [images addObject: image];
+            }
+            if (gifCompletion) {
+                gifCompletion(images, nil);
+            }
+        }
+    }
 }
 
 - (void)getVideoWithAsset: (id)asset completion: (void(^)(AVPlayerItem *playerItem, NSDictionary *info))completion {

@@ -18,6 +18,15 @@ typedef NS_ENUM(NSUInteger, BMAlbumModelMediaType) {
     BMAlbumModelMediaTypeAudio      = 3
 };
 
+typedef NS_ENUM(NSUInteger, BMImageType) {
+    UnKnow  =   0,
+    JPEG    =   1,
+    PNG     =   2,
+    GIF     =   3,
+    TIFF    =   4,
+    WEBP    =   5
+};
+
 #define iOS7Later       ([UIDevice currentDevice].systemVersion.floatValue >= 7.0f)
 #define iOS8Later       ([UIDevice currentDevice].systemVersion.floatValue >= 8.0f)
 #define iOS9Later       ([UIDevice currentDevice].systemVersion.floatValue >= 9.0f)

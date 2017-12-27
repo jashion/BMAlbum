@@ -18,6 +18,7 @@ typedef void(^didFinishPhotoHandle)(UIImage *resultImage);
 typedef void(^didFinishPhotoInfoHandle)(UIImage *resultImage, NSDictionary *info);
 typedef void(^didFinishPhotoInfoWithDegradHandle)(UIImage *resultImage, NSDictionary *info, BOOL isDegraded);
 typedef void(^didFinishLivePhotoInfoWithDegradHandle)(PHLivePhoto *livePhoto, NSDictionary *info);
+typedef void(^didFinishGIFInfoWithDegradHandle)(NSArray<UIImage *> *images, NSDictionary *info);
 
 @interface BMAlbumManager : NSObject
 
@@ -25,6 +26,8 @@ typedef void(^didFinishLivePhotoInfoWithDegradHandle)(PHLivePhoto *livePhoto, NS
 
 + (BMAlbumManager *)sharedInstance;
 - (BOOL)authorizationStatusAuthoried;
+
+- (BMImageType)imageTypeWithAsset: (id)asset;
 
 //获取本地相册
 - (void)allAlbumsWithVideo: (BOOL)allowPickingVideo completion: (void(^)(NSArray<BMAlbumDataModel *> *albums,  NSMutableArray *fetchResults, NSMutableArray *phAssetCollections))completion;
@@ -37,6 +40,7 @@ typedef void(^didFinishLivePhotoInfoWithDegradHandle)(PHLivePhoto *livePhoto, NS
 - (void)fullScreenImageWithAsset: (id)asset completion: (didFinishPhotoHandle)completion;
 - (void)originalImageWithAsset: (id)asset completion: (didFinishPhotoInfoHandle)completion;
 - (void)photoWithAsset: (id)asset width: (CGFloat)width completion: (didFinishPhotoInfoWithDegradHandle)completion;
+- (void)fullScreenImageWithAsset: (id)asset imageCompletion: (didFinishPhotoInfoHandle)imageCompletion gifCompletion: (didFinishGIFInfoWithDegradHandle)gifCompletion;
 
 //获取LivePhoto(也属于图片类型)
 - (void)livePhotoWithAsset: (id)asset completion: (didFinishLivePhotoInfoWithDegradHandle)completion;

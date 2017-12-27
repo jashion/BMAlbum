@@ -93,6 +93,7 @@
 		1DFE0D101D06B06400A2D179 /* BMPhotoPickerController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = BMPhotoPickerController.m; sourceTree = "<group>"; };
 		1DFE0D121D06B16E00A2D179 /* PhotoPickerCell.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = PhotoPickerCell.h; sourceTree = "<group>"; };
 		1DFE0D131D06B16E00A2D179 /* PhotoPickerCell.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = PhotoPickerCell.m; sourceTree = "<group>"; };
+		9EDA224E1FF1474C00EA481B /* PrefixHeader.pch */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PrefixHeader.pch; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -114,7 +115,6 @@
 				1DB3F82C1D66122600C71C74 /* BMViews */,
 				1DE15DF31D09141300F42B4E /* BMUtils */,
 				1DFE0D011D0682F400A2D179 /* BMImagePicker */,
-				1DFE0D021D0682F400A2D179 /* BMSource */,
 				1D86C9041D052C1200DC6749 /* BMAlbumCategories */,
 				1D86C9071D052C1200DC6749 /* BMAlbumDataModel */,
 				1D86C8F21D051FAC00DC6749 /* BMAlbumCollection */,
@@ -125,6 +125,7 @@
 				1DE15DF71D0AB7FC00F42B4E /* Localizable.strings */,
 				1DD6B88A1D10F39000797DDE /* BMAlbumGlobalDefine.h */,
 				1D0AE0331D742B0000C5FD9F /* BMAlbumAssets.xcassets */,
+				9EDA224E1FF1474C00EA481B /* PrefixHeader.pch */,
 			);
 			path = BMAlbum;
 			sourceTree = "<group>";
@@ -280,13 +281,6 @@
 			path = BMImagePicker;
 			sourceTree = "<group>";
 		};
-		1DFE0D021D0682F400A2D179 /* BMSource */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = BMSource;
-			sourceTree = "<group>";
-		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -318,7 +312,7 @@
 				TargetAttributes = {
 					1DCFEB1C1D018BF000A5DD27 = {
 						CreatedOnToolsVersion = 7.3;
-						DevelopmentTeam = UWK9V682NW;
+						DevelopmentTeam = 3D9K6K9886;
 					};
 				};
 			};
@@ -482,6 +476,9 @@
 				ASSETCATALOG_COMPILER_LAUNCHIMAGE_NAME = LaunchImage;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				DEVELOPMENT_TEAM = 3D9K6K9886;
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = /Users/huangjinhua/Downloads/Learn/Github/BMAlbum/BMImagePickerDemo/BMAlbum/PrefixHeader.pch;
 				INFOPLIST_FILE = BMImagePickerDemo/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 8.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
@@ -499,6 +496,9 @@
 				ASSETCATALOG_COMPILER_LAUNCHIMAGE_NAME = LaunchImage;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				DEVELOPMENT_TEAM = 3D9K6K9886;
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = /Users/huangjinhua/Downloads/Learn/Github/BMAlbum/BMImagePickerDemo/BMAlbum/PrefixHeader.pch;
 				INFOPLIST_FILE = BMImagePickerDemo/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 8.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
