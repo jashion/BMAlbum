@@ -3,7 +3,7 @@
 ###前言
 今年五月份进的新公司，接手的第一个新项目，里面我主要负责发帖，具体是图文，不包括视频。由于时间紧急，开发时间只有3天，实际上包括开发，测试和修复BUG，用了差不多3周的时间，第一周开发完成基本功能，后面两周测试和修复BUG,由于当时没有做过相册相关的功能，也因为时间紧急，所以，使用了一个[第三方的库](https://github.com/zhuochenming/ImagePickerController)，大家可以去看一下，写的比较全面。后来，项目完成之后，终于有时间，静下心慢慢研究iOS的图片框架了，个人对于不懂的东西，好奇心和求知欲还是比较强的。[Demo](https://github.com/jashion/BMAlbum)
 
-###一.iOS8以前的AssetsLibrary框架
+### 一.iOS8以前的AssetsLibrary框架
 我感觉，AssetsLibrary框架还是比较好用的，不过iOS9以后就被弃用了，使用iOS8出来的Photos框架，相比于AssetsLibrary更为强大，效率更高。具体的[文档](https://developer.apple.com/library/ios/documentation/AssetsLibrary/Reference/ALAssetsLibrary_Class/)可以去苹果官方浏览，这里只详述自己研究的一些东西。<p>
 AssetsLibrary框架只有6个文件，非常简洁：<br \>
 
@@ -71,13 +71,11 @@ break;
 NSLog(@"%@", errorMessage);
 }];
 
-
 //说一下Group Type
 ALAssetsGroupSavedPhotos  //Camera Roll
 ALAssetsGroupPhotoStream  //My Photo Stream
 ALAssetsGroupAll				//All  available group
 //剩下的类型可以去看文档
-
 
 //2.获取相册的缩略图
 ALAssetsGroup *group = (ALAssetsGroup *)model.assetResult;
@@ -102,7 +100,6 @@ if (result) {
 [self.albumPhotos addObject: result];
 }
 }];
-
 
 //(3).可选择遍历的位置和并发或者逆序遍历
 //获取0～9下标的照片
@@ -139,8 +136,6 @@ UIImage *resultImage = [UIImage imageWithCGImage: photoRef
 scale: [assetRepresentation scale]
 orientation: UIImageOrientationUp];
 
-
-
 //6.其它方法
 //创建相册
 - (void)addAssetsGroupAlbumWithName:(NSString *)name resultBlock:(ALAssetsLibraryGroupResultBlock)resultBlock failureBlock:(ALAssetsLibraryAccessFailureBlock)failureBlock；
@@ -176,18 +171,18 @@ AssetsLibrary 读取资源的过程中，有任何其它的进程（不一定是
 ```
 
 
-###二.iOS8以后，使用更为强大的Photos框架
+### 二.iOS8以后，使用更为强大的Photos框架
 Photos框架包括两个库Photos和PhotoUI，而PhotoUI主要是用来显示iOS9新增的Photo类型，LivePhoto说白了就是苹果新增的GIF,不过只能在iphone6以后发布的机型拍摄LivePhoto，下面也会介绍到这个新的图片类型。Let's begin!
 Photos库比ALAssetLibrary库复杂很多，相对的，功能强大很多，下面简述一下各个文件的作用：<br \>
-#####Tips: 升级iOS10之后，需要把在plist文件中添加所用的隐私权限，比如本应用：获取相机权限，获取本地相册权限，获取本地视频权限等等，不然后Crash掉，没得商量，苹果依然霸道如初。
-####1.Interacting with the Photos Library(与Photos库的交互)
+##### Tips: 升级iOS10之后，需要把在plist文件中添加所用的隐私权限，比如本应用：获取相机权限，获取本地相册权限，获取本地视频权限等等，不然后Crash掉，没得商量，苹果依然霸道如初。
+#### 1.Interacting with the Photos Library(与Photos库的交互)
 ```
 PHPhotoLibrary
 \\获取系统相册授权以及监听系统相册的变化，包括创建，删除和编辑
 \\由于PHAsset,PHAssetCollection和PHCollectionList是不可变对象
 \\所以，系统在该文件提供了一个修改系统相册资源的Block
 ```
-####2.Retrieving and Examining Assets(检索，获取和审查Assets)
+#### 2.Retrieving and Examining Assets(检索，获取和审查Assets)
 ```
 PHAsset
 \\代表系统的一个图片，视频或者Live Photo
@@ -210,7 +205,7 @@ PHFetchResult
 PHFetchOptions
 \\option的集合，关于过滤，排序和管理Photos
 ```
-####3.Loading Asset Content
+#### 3.Loading Asset Content
 ```
 PHImageManager
 \\提供获取或生成预览的缩略图和原图或者视频的数据
@@ -231,7 +226,7 @@ PHLivePhotoRequestOptions
 PHLivePhoto
 \\展示Live Photo(包含动作和声音的图片集合，和GIF差不多)
 ```
-####4.Requesting Changes
+#### 4.Requesting Changes
 ```
 PHAssetChangeRequest
 \\在photo library change block里创建，删除，修改metadata或者编辑Photos asset的内容的request
@@ -245,7 +240,7 @@ PHCollectionListChangeRequest
 PHObjectPlaceholder
 \\Photos asset和Photo collection的唯一资源占位符
 ```
-####5.Editing Asset Content
+#### 5.Editing Asset Content
 ```
 PHContentEditingInput
 \\一个提供编辑资源(image,video,Live Photo)信息的容器
@@ -266,7 +261,7 @@ PHLivePhotoFrame
 \\一个Live Photo的frame
 
 ```
-####6.Observing Changes(监听系统相册资源的改变)
+#### 6.Observing Changes(监听系统相册资源的改变)
 ```
 PHPhotoLibraryChangeObserver
 \\监听协议
@@ -299,7 +294,7 @@ PHAssetResourceRequestOptions
 \\获取基础数据的一些设置
 
 ```
-####8.Media Types and Subtypes
+#### 8.Media Types and Subtypes
 ```
 PHAssetMediaType
 \\媒体类型，比如：图片，视频，LivePhoto
@@ -308,19 +303,19 @@ PHAssetMediaSubtype
 \\asset media，比如：全景照片，截屏，延时拍摄，慢动作等等
 
 ```
-####9.Structures
+#### 9.Structures
 ```
 PHAssetBurstSelectionType
 PHAssetSourceType
 PHLivePhotoEditingOption
 ```
-####10.Other Reference
+#### 10.Other Reference
 ```
 Photos Constants
 Photos Enumerations
 Photos Data Types
 ```
-####11.下面介绍和功能相关的实现代码
+#### 11.下面介绍和功能相关的实现代码
 ```
 1.首先获取用户权限
 [PHPhotoLibrary authorizationStatus] == PHAuthorizationStatusAuthorized
@@ -435,9 +430,9 @@ completion(playerItem, info);
 
 5.创建相册，储存图片或者视频，编辑图片，具体看Demo代码，这里就不在废话多说了
 ```
-###三.总结
+### 三.总结
 这边文章很早就开始写了，断断续续写了几个月，一来工作有时忙没有时间，二来主要是自己懒。但是，总的来说，还是写完了，这也是极好的。
-###四.效果图
+### 四.效果图
 
 ![屏幕快照 2016-09-25 18.20.32.PNG](http://upload-images.jianshu.io/upload_images/968977-65ee15a68756dd6d.PNG?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
 
