@@ -1,11 +1,11 @@
 # BMAlbum
 这是一个上传本地照片，视频和LivePhoto的组件。
-###前言
+### 前言
 今年五月份进的新公司，接手的第一个新项目，里面我主要负责发帖，具体是图文，不包括视频。由于时间紧急，开发时间只有3天，实际上包括开发，测试和修复BUG，用了差不多3周的时间，第一周开发完成基本功能，后面两周测试和修复BUG,由于当时没有做过相册相关的功能，也因为时间紧急，所以，使用了一个[第三方的库](https://github.com/zhuochenming/ImagePickerController)，大家可以去看一下，写的比较全面。后来，项目完成之后，终于有时间，静下心慢慢研究iOS的图片框架了，个人对于不懂的东西，好奇心和求知欲还是比较强的。[Demo](https://github.com/jashion/BMAlbum)
 
 ### 一.iOS8以前的AssetsLibrary框架
 我感觉，AssetsLibrary框架还是比较好用的，不过iOS9以后就被弃用了，使用iOS8出来的Photos框架，相比于AssetsLibrary更为强大，效率更高。具体的[文档](https://developer.apple.com/library/ios/documentation/AssetsLibrary/Reference/ALAssetsLibrary_Class/)可以去苹果官方浏览，这里只详述自己研究的一些东西。<p>
-AssetsLibrary框架只有6个文件，非常简洁：<br \>
+AssetsLibrary框架只有6个文件，非常简洁：
 
 ```
 //该文件主要作用是引进头文件
@@ -40,7 +40,7 @@ ALAssetsGroup.h
 //判断状态是否是准许，如果允许则可以获取本地相册，否则，不能获取，则可以提示需要用户做什么操作才能打开本地相册
 ```
 
-2.获取本地相册，以及相册相关的一些信息，比如：缩略图，相册名称等等。<br \>
+2.获取本地相册，以及相册相关的一些信息，比如：缩略图，相册名称等等。
 
 ```
 //1.获取相册
@@ -155,7 +155,7 @@ ALAssetsLibraryChangedNotification
 
 ```
 
-3.据说是一些坑点 <br \>
+3.据说是一些坑点
 
 - ALAssetsLibrary实例必须被controller强引用或者是实例变量，不然会报错。(已亲自试验，会报错。)<br \>
 
@@ -173,7 +173,7 @@ AssetsLibrary 读取资源的过程中，有任何其它的进程（不一定是
 
 ### 二.iOS8以后，使用更为强大的Photos框架
 Photos框架包括两个库Photos和PhotoUI，而PhotoUI主要是用来显示iOS9新增的Photo类型，LivePhoto说白了就是苹果新增的GIF,不过只能在iphone6以后发布的机型拍摄LivePhoto，下面也会介绍到这个新的图片类型。Let's begin!
-Photos库比ALAssetLibrary库复杂很多，相对的，功能强大很多，下面简述一下各个文件的作用：<br \>
+Photos库比ALAssetLibrary库复杂很多，相对的，功能强大很多，下面简述一下各个文件的作用：
 ##### Tips: 升级iOS10之后，需要把在plist文件中添加所用的隐私权限，比如本应用：获取相机权限，获取本地相册权限，获取本地视频权限等等，不然后Crash掉，没得商量，苹果依然霸道如初。
 #### 1.Interacting with the Photos Library(与Photos库的交互)
 ```
