@@ -276,7 +276,7 @@ PHFetchResultChangeDetails
 \\一系列asset或者collection对象改变的描述
 
 ```
-####7.Working with Asset Resources
+#### 7.Working with Asset Resources
 ```
 PHAssetResource
 \\图片，视频和Live Photo在Photos library里的基础数据
